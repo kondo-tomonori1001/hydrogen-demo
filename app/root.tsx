@@ -50,8 +50,8 @@ export default function App() {
     <html lang="en">
       <head>
         <Seo />
-        <Meta />
         <Links />
+        <Meta />
       </head>
       <body>
         <Layout title={name}>

@@ -38,29 +38,46 @@ export const meta: MetaFunction = () => ({
 });
 
 export async function loader({context}: LoaderArgs) {
-  const layout = await context.storefront.query<{shop: Shop}>(LAYOUT_QUERY);
-  return {layout};
+  const cartId = await context.session.get('cartId');
+
+  return defer({
+    cart: cartId ? getCart(context, cartId) : undefined,
+    layout: await context.storefront.query(LAYOUT_QUERY),
+  });
 }
 
+import {ShopifyProvider} from '@shopify/hydrogen-react';
+import {defer} from '@shopify/remix-oxygen';
+import {CART_QUERY} from '~/queries/cart';
+
+const shopifyConfig = {
+  storefrontToken: '3b580e70970c4528da70c98e097c2fa0',
+  storeDomain: 'https://hydrogen-preview.myshopify.com',
+  storefrontApiVersion: '2023-01',
+  countryIsoCode: 'US',
+  languageIsoCode: 'en',
+};
 export default function App() {
   const data = useLoaderData<typeof loader>();
   const {name} = data.layout.shop;
 
   return (
-    <html lang="en">
-      <head>
-        <Seo />
-        <Links />
-        <Meta />
-      </head>
-      <body>
-        <Layout title={name}>
-          <Outlet />
-        </Layout>
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
+    <ShopifyProvider {...shopifyConfig}>
+      <html lang="en">
+        <head>
+          <Seo />
+          <Links />
+          <Meta />
+        </head>
+        <body>
+          <Layout title={name}>
+            <Outlet />
+          </Layout>
+          <ScrollRestoration />
+          <Scripts />
+        </body>
+      </html>
+    </ShopifyProvider>
   );
 }
 
@@ -72,3 +89,20 @@ const LAYOUT_QUERY = `#graphql
     }
   }
 `;
+
+async function getCart({storefront}, cartId) {
+  if (!storefront) {
+    throw new Error('missing storefront client in cart query');
+  }
+
+  const {cart} = await storefront.query(CART_QUERY, {
+    variables: {
+      cartId,
+      country: storefront.i18n.country,
+      language: storefront.i18n.language,
+    },
+    cache: storefront.CacheNone(),
+  });
+
+  return cart;
+}

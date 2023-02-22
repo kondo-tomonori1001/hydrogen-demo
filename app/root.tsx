@@ -16,6 +16,8 @@ import type {Shop} from '@shopify/hydrogen/storefront-api-types';
 import styles from './styles/app.css';
 import favicon from '../public/favicon.svg';
 import {Layout} from './components/Layout';
+import {json} from 'react-router';
+import {Buffer} from 'buffer';
 
 export const links: LinksFunction = () => {
   return [
@@ -37,10 +39,27 @@ export const meta: MetaFunction = () => ({
   viewport: 'width=device-width,initial-scale=1',
 });
 
-export async function loader({context}: LoaderArgs) {
+const isAuthorized = (request: Request) => {
+  const header = request.headers.get('Authorization');
+  if (!header) return false;
+  const base64 = header.replace('Basic ', '');
+  const [username, password] = Buffer.from(base64, 'base64')
+    .toString()
+    .split(':');
+  return username === 'admin' && password === 'password';
+};
+
+export async function loader({context, request}: LoaderArgs) {
   const cartId = await context.session.get('cartId');
 
+  console.log(isAuthorized(request));
+
+  if (!isAuthorized(request)) {
+    return json({authorized: false}, {status: 401});
+  }
+
   return defer({
+    authorized: true,
     cart: cartId ? getCart(context, cartId) : undefined,
     layout: await context.storefront.query(LAYOUT_QUERY),
   });
@@ -58,6 +77,11 @@ const shopifyConfig = {
   languageIsoCode: 'en',
 };
 export default function App() {
+  const {authorized} = useLoaderData<typeof loader>();
+  if (!authorized) {
+    return <>Authorization Required</>;
+  }
+
   const data = useLoaderData<typeof loader>();
   const {name} = data.layout.shop;
 

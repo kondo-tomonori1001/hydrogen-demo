@@ -52,11 +52,9 @@ const isAuthorized = (request: Request) => {
 export async function loader({context, request}: LoaderArgs) {
   const cartId = await context.session.get('cartId');
 
-  console.log(isAuthorized(request));
-
-  if (!isAuthorized(request)) {
-    return json({authorized: false}, {status: 401});
-  }
+  // if (!isAuthorized(request)) {
+  //   return json({authorized: false}, {status: 401});
+  // }
 
   return defer({
     authorized: true,
